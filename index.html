@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>한일 목록 To-Do List</title>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        :root {
+            --bg-start: #e8f7ef;
+            --bg-end: #d6f0df;
+            --card: rgba(255, 255, 255, 0.96);
+            --text: #1f2a24;
+            --muted: #6d7d72;
+            --primary: #43a66f;
+            --primary-dark: #368b5c;
+            --soft: #f6fbf8;
+            --border: #cfe8d8;
+            --shadow: rgba(46, 125, 82, 0.14);
+            --danger-bg: #ffecec;
+            --danger: #e74c3c;
+            --warning: #ff9800;
+        }
+
+        body.dark {
+            --bg-start: #102018;
+            --bg-end: #172c21;
+            --card: rgba(28, 43, 34, 0.96);
+            --text: #eef8f2;
+            --muted: #a9b8ae;
+            --primary: #67c58d;
+            --primary-dark: #4fab75;
+            --soft: #23382c;
+            --border: #365744;
+            --shadow: rgba(0, 0, 0, 0.28);
+            --danger-bg: #482a2a;
+            --danger: #ff9b91;
+            --warning: #f6b64a;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--bg-start) 0%, var(--bg-end) 100%);
+            display: flex;
+            justify-content: center;
+            padding: 24px 14px;
+            color: var(--text);
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        .app {
+            width: 100%;
+            max-width: 460px;
+            background: var(--card);
+            border: 1px solid rgba(99, 166, 121, 0.16);
+            border-radius: 26px;
+            padding: 24px;
+            box-shadow: 0 14px 34px var(--shadow);
+            transition: background 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 6px;
+        }
+
+        .subtitle,
+        .today {
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .dark-btn {
+            background: var(--soft);
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 10px 12px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .login-btn {
+            background: var(--primary);
+            color: #fff;
+            padding: 10px 14px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .login-btn:hover {
+            background: var(--primary-dark);
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--soft);
+            border: 1px solid var(--border);
+            padding: 5px 10px;
+            border-radius: 22px;
+        }
+
+        .user-avatar {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .user-name {
+            font-size: 13px;
+            font-weight: 600;
+            max-width: 80px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .logout-btn {
+            background: transparent;
+            border: none;
+            color: var(--muted);
+            font-size: 12px;
+            cursor: pointer;
+            text-decoration: underline;
+            padding: 0 2px;
+        }
+
+        .logout-btn:hover {
+            color: var(--danger);
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.45);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 28px 24px;
+            width: 90%;
+            max-width: 360px;
+            box-shadow: 0 20px 40px var(--shadow);
+            position: relative;
+            text-align: center;
+            transform: scale(0.92);
+            transition: transform 0.25s ease, background 0.3s ease;
+        }
+
+        .modal-overlay.active .modal-card {
+            transform: scale(1);
+        }
+
+        .modal-close-btn {
+            position: absolute;
+            top: 14px;
+            right: 16px;
+            background: transparent;
+            border: none;
+            font-size: 24px;
+            color: var(--muted);
+            cursor: pointer;
+            line-height: 1;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-close-btn:hover {
+            background: var(--soft);
+            color: var(--text);
+        }
+
+        .modal-header h2 {
+            font-size: 20px;
+            margin-bottom: 6px;
+            color: var(--text);
+        }
+
+        .modal-header p {
+            font-size: 13px;
+            color: var(--muted);
+            margin-bottom: 20px;
+        }
+
+        .google-btn-wrapper {
+            display: flex;
+            justify-content: center;
+            margin-top: 10px;
+            min-height: 44px;
+        }
+
+        .form-area,
+        .search-area {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 14px;
+            border: 1px solid var(--border);
+            border-radius: 22px;
+            font-size: 15px;
+            outline: none;
+            background: var(--soft);
+            color: var(--text);
+            transition: 0.2s ease;
+        }
+
+        input:focus,
+        select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(67, 166, 111, 0.14);
+        }
+
+        .date-input {
+            max-width: 155px;
+        }
+
+        button {
+            border: none;
+            cursor: pointer;
+            border-radius: 22px;
+            font-size: 14px;
+            transition: transform 0.18s ease, background 0.2s ease, opacity 0.2s ease;
+        }
+
+        button:hover {
+            transform: translateY(-1px);
+        }
+
+        .add-btn {
+            background: var(--primary);
+            color: #fff;
+            padding: 0 18px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .add-btn:hover {
+            background: var(--primary-dark);
+        }
+
+        .filter-area {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin: 10px 0 14px;
+        }
+
+        .filter-btn {
+            background: var(--soft);
+            color: var(--muted);
+            border: 1px solid var(--border);
+            padding: 10px 8px;
+            font-weight: 700;
+        }
+
+        .filter-btn.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+
+        .actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 14px;
+        }
+
+        .clear-btn {
+            background: var(--warning);
+            color: #fff;
+            padding: 10px 14px;
+            font-weight: 700;
+        }
+
+        .remaining-count {
+            margin-bottom: 14px;
+            padding: 12px 14px;
+            background: rgba(67, 166, 111, 0.12);
+            color: var(--primary-dark);
+            border-radius: 22px;
+            font-size: 14px;
+            font-weight: 800;
+            text-align: center;
+        }
+
+        body.dark .remaining-count {
+            color: #b8f1cc;
+        }
+
+        ul {
+            list-style: none;
+        }
+
+        li {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 14px;
+            background: var(--soft);
+            border: 1px solid transparent;
+            border-radius: 22px;
+            margin-bottom: 10px;
+            animation: fadeSlideIn 0.28s ease;
+            transition: transform 0.2s ease, opacity 0.2s ease, background 0.2s ease, border 0.2s ease;
+        }
+
+        li:hover {
+            transform: translateY(-2px);
+            border-color: var(--border);
+        }
+
+        .task-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+            min-width: 0;
+            cursor: pointer;
+        }
+
+        .check {
+            position: relative;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            border: 2px solid var(--primary);
+            background: #fff;
+            flex-shrink: 0;
+        }
+
+        .completed .check {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .completed .check::after {
+            content: "✓";
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            position: absolute;
+            left: 5px;
+            top: 0px;
+        }
+
+        .task-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .task-text {
+            display: block;
+            font-size: 15px;
+            word-break: break-word;
+            line-height: 1.35;
+        }
+
+        .task-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 6px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .badge {
+            padding: 3px 8px;
+            background: rgba(67, 166, 111, 0.12);
+            border-radius: 999px;
+        }
+
+        .due-overdue {
+            color: #e74c3c;
+            font-weight: 800;
+        }
+
+        .due-today {
+            color: var(--warning);
+            font-weight: 800;
+        }
+
+        .completed {
+            opacity: 0.55;
+        }
+
+        .completed .task-text {
+            color: #9aa0a6;
+            text-decoration: line-through;
+            text-decoration-thickness: 2px;
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .star-btn,
+        .delete-btn {
+            padding: 8px 10px;
+            font-weight: 700;
+        }
+
+        .star-btn {
+            background: #fff7df;
+            color: #c48600;
+        }
+
+        .star-btn.active {
+            background: #ffd76b;
+            color: #5f4100;
+        }
+
+        .delete-btn {
+            background: var(--danger-bg);
+            color: var(--danger);
+        }
+
+        .empty {
+            text-align: center;
+            color: var(--muted);
+            font-size: 14px;
+            padding: 24px 0;
+        }
+
+        .summary {
+            margin-top: 14px;
+            font-size: 13px;
+            color: var(--muted);
+            text-align: right;
+        }
+
+        @keyframes fadeSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 16px 10px;
+            }
+
+            .app {
+                padding: 18px;
+                border-radius: 22px;
+            }
+
+            h1 {
+                font-size: 22px;
+            }
+
+            .form-area {
+                flex-direction: column;
+            }
+
+            .date-input {
+                max-width: 100%;
+            }
+
+            .add-btn {
+                padding: 14px 18px;
+            }
+
+            .filter-area {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app">
+        <div class="header">
+            <div>
+                <h1>한일 목록</h1>
+                <p class="subtitle">오늘 해야 할 일을 간단히 관리하세요.</p>
+                <p id="today" class="today"></p>
+            </div>
+            <div class="header-actions">
+                <button id="darkModeBtn" class="dark-btn" onclick="toggleDarkMode()">🌙 다크</button>
+                <div id="userProfileArea">
+                    <button id="loginBtn" class="login-btn" onclick="openLoginModal()">🔑 로그인</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-area">
+            <input type="text" id="taskInput" placeholder="새 작업 입력" />
+            <input type="date" id="dueDateInput" class="date-input" />
+            <button class="add-btn" onclick="addTask()">추가</button>
+        </div>
+
+        <div class="search-area">
+            <input type="text" id="searchInput" placeholder="작업 검색" oninput="renderTasks()" />
+        </div>
+
+        <div class="filter-area">
+            <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">전체</button>
+            <button class="filter-btn" data-filter="active" onclick="setFilter('active')">미완료</button>
+            <button class="filter-btn" data-filter="completed" onclick="setFilter('completed')">완료</button>
+        </div>
+
+        <div class="actions">
+            <button class="clear-btn" onclick="clearCompleted()">완료된 작업 삭제</button>
+        </div>
+
+        <div id="remainingCount" class="remaining-count">남은 작업 0개</div>
+        <ul id="taskList"></ul>
+        <div id="emptyMessage" class="empty">등록된 작업이 없습니다.</div>
+        <div id="summary" class="summary"></div>
+    </div>
+
+    <!-- 로그인 모달 -->
+    <div id="loginModal" class="modal-overlay" onclick="closeLoginModalOnOverlay(event)">
+        <div class="modal-card">
+            <button class="modal-close-btn" onclick="closeLoginModal()">&times;</button>
+            <div class="modal-header">
+                <h2>구글 로그인</h2>
+                <p>구글 계정으로 간편하게 시작해보세요.</p>
+            </div>
+            <div class="modal-body">
+                <div id="googleBtnContainer" class="google-btn-wrapper"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+        let currentFilter = "all";
+
+        const taskInput = document.getElementById("taskInput");
+        const dueDateInput = document.getElementById("dueDateInput");
+        const searchInput = document.getElementById("searchInput");
+        const taskList = document.getElementById("taskList");
+        const emptyMessage = document.getElementById("emptyMessage");
+        const summary = document.getElementById("summary");
+        const remainingCount = document.getElementById("remainingCount");
+        const today = document.getElementById("today");
+        const darkModeBtn = document.getElementById("darkModeBtn");
+
+        taskInput.addEventListener("keydown", function (event) {
+            if (event.key === "Enter") {
+                addTask();
+            }
+        });
+
+        dueDateInput.addEventListener("keydown", function (event) {
+            if (event.key === "Enter") {
+                addTask();
+            }
+        });
+
+        function saveTasks() {
+            localStorage.setItem("tasks", JSON.stringify(tasks));
+        }
+
+        function addTask() {
+            const text = taskInput.value.trim();
+            const dueDate = dueDateInput.value;
+
+            if (!text) {
+                alert("작업 내용을 입력하세요.");
+                return;
+            }
+
+            tasks.push({
+                id: Date.now(),
+                text,
+                dueDate,
+                important: false,
+                completed: false,
+                createdAt: new Date().toISOString()
+            });
+
+            taskInput.value = "";
+            dueDateInput.value = "";
+            saveTasks();
+            renderTasks();
+        }
+
+        function toggleTask(id) {
+            tasks = tasks.map(task =>
+                task.id === id ? { ...task, completed: !task.completed } : task
+            );
+            saveTasks();
+            renderTasks();
+        }
+
+        function toggleImportant(id) {
+            tasks = tasks.map(task =>
+                task.id === id ? { ...task, important: !task.important } : task
+            );
+            saveTasks();
+            renderTasks();
+        }
+
+        function deleteTask(id) {
+            tasks = tasks.filter(task => task.id !== id);
+            saveTasks();
+            renderTasks();
+        }
+
+        function clearCompleted() {
+            const completedCount = tasks.filter(task => task.completed).length;
+            if (completedCount === 0) {
+                alert("삭제할 완료된 작업이 없습니다.");
+                return;
+            }
+            if (!confirm(`완료된 작업 ${completedCount}개를 삭제하시겠습니까?`)) {
+                return;
+            }
+            tasks = tasks.filter(task => !task.completed);
+            saveTasks();
+            renderTasks();
+        }
+
+        function setFilter(filter) {
+            currentFilter = filter;
+            document.querySelectorAll(".filter-btn").forEach(button => {
+                button.classList.toggle("active", button.dataset.filter === filter);
+            });
+            renderTasks();
+        }
+
+        function getFilteredTasks() {
+            const keyword = searchInput.value.trim().toLowerCase();
+
+            return tasks
+                .filter(task => {
+                    if (currentFilter === "active") return !task.completed;
+                    if (currentFilter === "completed") return task.completed;
+                    return true;
+                })
+                .filter(task => task.text.toLowerCase().includes(keyword))
+                .sort((a, b) => {
+                    if (a.important !== b.important) return b.important - a.important;
+                    return a.id - b.id;
+                });
+        }
+
+        function renderTasks() {
+            taskList.innerHTML = "";
+
+            const filteredTasks = getFilteredTasks();
+
+            filteredTasks.forEach(task => {
+                const li = document.createElement("li");
+                li.className = task.completed ? "completed" : "";
+
+                const dueText = getDueText(task.dueDate, task.completed);
+                const importantBadge = task.important ? `<span class="badge">⭐ 중요</span>` : "";
+                const dueBadge = task.dueDate ? `<span class="badge ${dueText.className}">${dueText.text}</span>` : "";
+
+                li.innerHTML = `
+                    <div class="task-left" onclick="toggleTask(${task.id})">
+                        <button class="check" aria-label="완료 상태 변경"></button>
+                        <div class="task-content">
+                            <span class="task-text">${escapeHtml(task.text)}</span>
+                            <div class="task-meta">
+                                ${importantBadge}
+                                ${dueBadge}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="task-actions">
+                        <button class="star-btn ${task.important ? "active" : ""}" onclick="event.stopPropagation(); toggleImportant(${task.id})">★</button>
+                        <button class="delete-btn" onclick="event.stopPropagation(); deleteTask(${task.id})">삭제</button>
+                    </div>
+                `;
+
+                taskList.appendChild(li);
+            });
+
+            const completedCount = tasks.filter(task => task.completed).length;
+            const remainingTaskCount = tasks.length - completedCount;
+            const importantCount = tasks.filter(task => task.important).length;
+
+            emptyMessage.style.display = filteredTasks.length === 0 ? "block" : "none";
+            emptyMessage.textContent = tasks.length === 0 ? "등록된 작업이 없습니다." : "조건에 맞는 작업이 없습니다.";
+
+            remainingCount.textContent = `남은 작업 ${remainingTaskCount}개`;
+            remainingCount.style.display = tasks.length === 0 ? "none" : "block";
+
+            summary.textContent = tasks.length
+                ? `전체 ${tasks.length}개 / 완료 ${completedCount}개 / 남은 작업 ${remainingTaskCount}개 / 중요 ${importantCount}개`
+                : "";
+        }
+
+        function getDueText(dueDate, completed) {
+            if (!dueDate) return { text: "", className: "" };
+            if (completed) return { text: `마감 ${formatDate(dueDate)}`, className: "" };
+
+            const todayDate = new Date();
+            todayDate.setHours(0, 0, 0, 0);
+
+            const due = new Date(dueDate + "T00:00:00");
+            const diffDays = Math.round((due - todayDate) / (1000 * 60 * 60 * 24));
+
+            if (diffDays < 0) return { text: `기한 지남 ${Math.abs(diffDays)}일`, className: "due-overdue" };
+            if (diffDays === 0) return { text: "오늘 마감", className: "due-today" };
+            if (diffDays === 1) return { text: "내일 마감", className: "" };
+            return { text: `마감 ${formatDate(dueDate)}`, className: "" };
+        }
+
+        function formatDate(value) {
+            const date = new Date(value + "T00:00:00");
+            return `${date.getMonth() + 1}/${date.getDate()}`;
+        }
+
+        function setTodayText() {
+            const now = new Date();
+            const formatter = new Intl.DateTimeFormat("ko-KR", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+                weekday: "long"
+            });
+            today.textContent = `오늘: ${formatter.format(now)}`;
+        }
+
+        function toggleDarkMode() {
+            const isDark = document.body.classList.toggle("dark");
+            localStorage.setItem("todoDarkMode", isDark ? "dark" : "light");
+            darkModeBtn.textContent = isDark ? "☀️ 라이트" : "🌙 다크";
+            renderGoogleButton();
+        }
+
+        function loadDarkMode() {
+            const mode = localStorage.getItem("todoDarkMode");
+            if (mode === "dark") {
+                document.body.classList.add("dark");
+                darkModeBtn.textContent = "☀️ 라이트";
+            }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return "";
+            return text
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#039;");
+        }
+
+        /* 구글 로그인 및 모달 처리 */
+        const GOOGLE_CLIENT_ID = "272395028087-k0cn52n60f7k46td26tojgs8edjss4f0.apps.googleusercontent.com";
+        let currentUser = JSON.parse(localStorage.getItem("currentUser")) || null;
+
+        function initGoogleSignIn() {
+            if (window.google && window.google.accounts) {
+                google.accounts.id.initialize({
+                    client_id: GOOGLE_CLIENT_ID,
+                    callback: handleCredentialResponse,
+                    auto_select: false
+                });
+            } else {
+                setTimeout(initGoogleSignIn, 300);
+            }
+        }
+
+        function renderGoogleButton() {
+            const container = document.getElementById("googleBtnContainer");
+            if (container && window.google && window.google.accounts) {
+                container.innerHTML = "";
+                google.accounts.id.renderButton(
+                    container,
+                    {
+                        theme: document.body.classList.contains("dark") ? "filled_black" : "outline",
+                        size: "large",
+                        shape: "pill",
+                        text: "signin_with",
+                        width: 250
+                    }
+                );
+            }
+        }
+
+        function handleCredentialResponse(response) {
+            try {
+                const payload = parseJwt(response.credential);
+                currentUser = {
+                    name: payload.name,
+                    email: payload.email,
+                    picture: payload.picture
+                };
+                localStorage.setItem("currentUser", JSON.stringify(currentUser));
+                updateUserUI();
+                closeLoginModal();
+            } catch (e) {
+                console.error("구글 로그인 처리 오류:", e);
+            }
+        }
+
+        function parseJwt(token) {
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function (c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            return JSON.parse(jsonPayload);
+        }
+
+        function openLoginModal() {
+            renderGoogleButton();
+            document.getElementById("loginModal").classList.add("active");
+        }
+
+        function closeLoginModal() {
+            document.getElementById("loginModal").classList.remove("active");
+        }
+
+        function closeLoginModalOnOverlay(event) {
+            if (event.target.id === "loginModal") {
+                closeLoginModal();
+            }
+        }
+
+        function logout() {
+            if (confirm("로그아웃 하시겠습니까?")) {
+                currentUser = null;
+                localStorage.removeItem("currentUser");
+                updateUserUI();
+            }
+        }
+
+        function updateUserUI() {
+            const userProfileArea = document.getElementById("userProfileArea");
+            if (currentUser) {
+                userProfileArea.innerHTML = `
+                    <div class="user-profile" title="${escapeHtml(currentUser.email)}">
+                        <img src="${escapeHtml(currentUser.picture)}" alt="${escapeHtml(currentUser.name)}" class="user-avatar" />
+                        <span class="user-name">${escapeHtml(currentUser.name)}</span>
+                        <button class="logout-btn" onclick="logout()">로그아웃</button>
+                    </div>
+                `;
+            } else {
+                userProfileArea.innerHTML = `
+                    <button id="loginBtn" class="login-btn" onclick="openLoginModal()">🔑 로그인</button>
+                `;
+            }
+        }
+
+        setTodayText();
+        loadDarkMode();
+        updateUserUI();
+        initGoogleSignIn();
+        renderTasks();
+    </script>
+</body>
+
+</html>
